@@ -20,7 +20,7 @@ class FuelStation(models.Model):
 
 
 class City(models.Model):
-    name = models.CharField(max_length=100)  # stored lowercase, e.g. "big cabin"
+    name = models.CharField(max_length=100)  # normalized key, e.g. "bigcabin"
     state = models.CharField(max_length=2)
     latitude = models.FloatField()
     longitude = models.FloatField()

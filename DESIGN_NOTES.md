@@ -63,6 +63,28 @@ Two different problems could be meant:
 | US stations whose address gives an exit number | 56.4% |
 | Price range (all rows) | $2.687 – $6.399 per gallon |
 
+### Coordinate sources — Census Gazetteer (Places, County Subdivisions) + USGS GNIS Populated Places (measured)
+
+| Metric | Value |
+|---|---|
+| Rows | 32,363 US places (incorporated places + census-designated places) |
+| Format | Pipe-delimited (`|`); name in `NAME`, coordinates in `INTPTLAT` / `INTPTLONG` |
+| Name format | Includes a type suffix — `Abbeville city`, `Abanda CDP`, `... town/village/borough` — stripped before matching |
+| Same name twice in one state (after stripping) | 212 cases — why `City` has no unique constraint on (name, state) |
+| Name normalisation for matching | lowercase, strip accents (Cañon → canon), drop spaces/punctuation (De Forest = DeForest), Saint/Fort/Mount → St/Ft/Mt, consolidated cities (Athens-Clarke County → Athens) |
+| US stations placed — Places file only | 6,321 of 6,626 (95.4%) — misses concentrated in New England / mid-Atlantic townships, which the Census files as *county subdivisions* |
+| County Subdivisions file added as a fallback (36,381 rows, same format; Places wins when both match) | **6,449 of 6,626 (97.3%)** |
+| Still unmatched (177 stations, 133 city/state pairs) | Tiny unincorporated spots and postal names (e.g. Breezewood PA, Clines Corners NM, Jean NV) and neighbourhoods (Antioch TN). Skipped and listed by the loader |
+| Pitfall found while testing | Strip the type suffix only once — stripping twice turned "Oklahoma City city" into "Oklahoma" |
+| USGS GNIS "Populated Places" file added as third source (190,923 rows; includes unincorporated communities such as Breezewood PA, Jean NV; state given as FIPS code, mapped to USPS via the Census GEOID prefix) | 6,614 of 6,626 (99.8%) |
+| Last 9 city names resolved with `data/city_aliases.csv`, each backed by the station's own address (e.g. Ottawa Lake MI, "US-23 EXIT 5" → Whiteford township; Willow Beach AZ, "US-93" → White Hills; Hot Springs National Park AR → Hot Springs) | **6,626 of 6,626 (100%)** |
+
+**Canada:** NRCan Canadian Geographical Names Database, filtered to the 29,716 *Populated Place* entries and saved as `data/canada_populated_places.csv` (1.4 MB; the full 77 MB download is kept out of git). All 85 Canadian station towns match; 14 have duplicate names and use the Rack ID rule. **Total: 6,738 of 6,738 stations placed (6,626 US + 112 Canada).**
+
+**Source priority:** Census Places → Census County Subdivisions → USGS GNIS → NRCan (Canada) → alias file applied first as a name translation.
+
+**Ambiguous names** (same name more than once in a state — e.g. GNIS has 12 places called Antioch in Tennessee): pick the candidate nearest to the average position of other stations that share the same **Rack ID**. Rack ID is the OPIS wholesale fuel terminal a station's price is based on, so stations sharing a rack are in the same supply region. Spot checks: Antioch TN → Davidson County (Nashville), Chesterfield VA → Chesterfield County, Clear Brook VA → Frederick County (I-81).
+
 ## 5. Decisions
 
 ### D1. Routing provider — OSRM public server
@@ -93,7 +115,7 @@ Instead each station takes the coordinates of its town from the Census file, com
 
 - One row per OPIS ID, keeping the **lowest** price (the brief defines optimal as cost-effective).
 - Trim whitespace in all text fields.
-- Drop Canadian rows — routes are US-only and the Census file covers only the US.
+- Canadian rows are **kept** (revised). Start and finish are in the US, but some US-to-US routes run through Canada — Seattle → Anchorage uses the Alaska Highway through BC and Yukon (the CSV has stations in Dawson Creek, Fort Nelson, Watson Lake, Whitehorse), and Detroit → Buffalo is often fastest through Ontario. 620 rows = 112 stations in 85 towns. Their prices sit on the same per-gallon scale as US prices (median $4.45 vs $3.40), so they are used as given. Coordinates come from Natural Resources Canada's Canadian Geographical Names Database.
 - Skip stations whose city is not in the Census file; the loader reports the count.
 
 ### D5. Storage
@@ -148,14 +170,36 @@ One OSRM call requesting alternatives → run corridor + optimizer on each candi
 - OSRM does not guarantee alternatives; the response reports how many routes were compared.
 - `distance` means the shortest *among the routes offered* — OSRM has no pure shortest-distance mode.
 
+### D12. Code structure
+
+```
+routing/
+  models.py                  FuelStation, City
+  utils.py                   normalize() - shared name cleaning
+  data_sources.py            readers for the CSV and the four place files
+  management/commands/
+    load_stations.py         one-time loader: match coordinates, save
+  services/
+    geocoding.py             "City, ST" -> coordinates (DB lookup, US only)
+    osrm.py                  the single routing API call
+    corridor.py              stations near the route + mile markers
+    fuel_optimizer.py        greedy algorithm - pure logic, no Django/HTTP
+    route_planner.py         orchestrates the services
+  serializers.py             request validation
+  views.py                   thin API view
+```
+
+SOLID applied the Python way: one reason to change per module; the optimizer takes and returns plain data (so it is unit-testable without a database or network); new `optimize` modes are new entries in a selector map. Plain functions and modules instead of Java-style interfaces - swapping the routing provider means replacing `osrm.py`.
+
 ## 6. Edge cases and limitations
 
 | # | Case | Handling |
 |---|---|---|
 | E1 | Station placed at its town's centre, not its exact exit — may miss a station on the route, include one slightly off it, or shift its mile marker | Corridor of ~10 miles (configurable); mile marker taken from the nearest point on the route; optional range safety buffer (e.g. plan legs ≤ 480 mi). Worst case is a slightly costlier plan, not an infeasible one |
 | E2 | Large cities: many stations share one point (Phoenix 22, San Antonio 19, Indianapolis 15) | Same mitigations as E1; the largest source of position error |
-| E3 | Station's city not found in the Census file | Skipped at load; count reported |
-| E4 | Canadian stations | Excluded |
+| E2b | Duplicate place names within a state | Disambiguated by Rack ID proximity (see coordinate sources) |
+| E3 | Station's city not in any source | Resolved to 100% with three sources + a 9-row alias file; the loader still reports any future misses instead of failing |
+| E4 | Canadian stations | Included — needed for US-to-US routes that cross Canada (Alaska Highway, Detroit–Buffalo via Ontario); placed with the NRCan Canadian Geographical Names file |
 | E5 | Start/finish not found, or outside the US | 400 error with a clear message *(planned)* |
 | E6 | A stretch longer than 500 miles with no station in the corridor | Error explaining the trip cannot be completed on this range *(planned)* |
 | E7 | Trip under 500 miles | One fill near the start (under D8) |
