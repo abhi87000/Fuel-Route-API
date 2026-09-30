@@ -1,7 +1,9 @@
 import requests
+from django.core.cache import cache
 
 OSRM_URL = "https://router.project-osrm.org/route/v1/driving/{coords}"
 METERS_PER_MILE = 1609.344
+CACHE_SECONDS = 60 * 60
 
 
 class RoutingError(Exception):
@@ -10,6 +12,11 @@ class RoutingError(Exception):
 
 def get_routes(start, finish, alternatives=False):
     coords = f"{start[1]},{start[0]};{finish[1]},{finish[0]}"
+    cache_key = f"osrm:{coords}:{alternatives}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     params = {
         "overview": "full",
         "geometries": "geojson",
@@ -27,7 +34,7 @@ def get_routes(start, finish, alternatives=False):
     if data.get("code") != "Ok" or not data.get("routes"):
         raise RoutingError(f"No route found ({data.get('code')})")
 
-    return [
+    routes = [
         {
             "distance_miles": route["distance"] / METERS_PER_MILE,
             "duration_hours": route["duration"] / 3600,
@@ -35,3 +42,5 @@ def get_routes(start, finish, alternatives=False):
         }
         for route in data["routes"]
     ]
+    cache.set(cache_key, routes, CACHE_SECONDS)
+    return routes

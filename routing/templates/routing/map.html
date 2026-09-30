@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Fuel Route Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+    #map { position: absolute; inset: 0; }
+    .panel { position: absolute; top: 12px; right: 12px; z-index: 1000; background: #fff; padding: 12px 16px;
+             border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.2); max-width: 340px; max-height: 85vh; overflow: auto; font-size: 14px; }
+    .panel h1 { font-size: 16px; margin: 0 0 8px; }
+    .panel table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+    .panel td, .panel th { padding: 3px 4px; border-bottom: 1px solid #eee; text-align: left; }
+    .total { font-size: 18px; font-weight: 600; }
+    .error { color: #b00020; }
+  </style>
+</head>
+<body>
+{% if plan %}
+  <div id="map"></div>
+  <div class="panel">
+    <h1>{{ plan.start.query }} &rarr; {{ plan.finish.query }}</h1>
+    <div>{{ plan.distance_miles }} mi &middot; {{ plan.duration_hours }} h &middot; {{ plan.fuel_stops|length }} fuel stops &middot; tank {{ plan.start_fuel_percent }}% at start</div>
+    <div class="total">${{ plan.total_fuel_cost }} &middot; {{ plan.total_gallons }} gal</div>
+    <div><small>Starting fuel: {{ plan.starting_fuel.gallons_used }} gal used &times; ${{ plan.starting_fuel.price_per_gallon }} = ${{ plan.starting_fuel.cost }} (priced at {{ plan.starting_fuel.priced_at }})</small></div>
+    <table>
+      <tr><th>Mile</th><th>Station</th><th>$/gal</th><th>Gal</th></tr>
+      {% for stop in plan.fuel_stops %}
+        <tr><td>{{ stop.mile }}</td><td>{{ stop.name }}<br><small>{{ stop.city }}, {{ stop.state }}</small></td>
+            <td>{{ stop.price_per_gallon }}</td><td>{{ stop.gallons }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {{ plan|json_script:"plan-data" }}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const plan = JSON.parse(document.getElementById("plan-data").textContent);
+    const map = L.map("map");
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      referrerPolicy: "strict-origin-when-cross-origin",
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    const line = L.geoJSON(plan.route_geometry, { style: { color: "#2563eb", weight: 5 } }).addTo(map);
+    map.fitBounds(line.getBounds(), { padding: [30, 30] });
+
+    L.marker([plan.start.latitude, plan.start.longitude]).addTo(map).bindPopup("Start: " + plan.start.query);
+    L.marker([plan.finish.latitude, plan.finish.longitude]).addTo(map).bindPopup("Finish: " + plan.finish.query);
+
+    plan.fuel_stops.forEach((stop, i) => {
+      L.circleMarker([stop.latitude, stop.longitude], { radius: 9, color: "#15803d", fillColor: "#22c55e", fillOpacity: 0.9 })
+        .addTo(map)
+        .bindPopup(`<b>Stop ${i + 1}: ${stop.name}</b><br>${stop.city}, ${stop.state} &middot; mile ${stop.mile}<br>` +
+                   `$${stop.price_per_gallon}/gal &middot; ${stop.gallons} gal &middot; $${stop.cost}`);
+    });
+  </script>
+{% else %}
+  <div class="panel" style="position: static; margin: 24px;">
+    <h1>Could not plan this trip</h1>
+    <pre class="error">{{ errors }}</pre>
+    <p>Example: <code>/api/map/?start=Chicago, IL&amp;finish=Houston, TX</code></p>
+  </div>
+{% endif %}
+</body>
+</html>

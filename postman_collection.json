@@ -1,0 +1,777 @@
+{
+  "info": {
+    "name": "Fuel Route API",
+    "description": "Route, cheapest fuel stops and total fuel cost between two US cities.\n\nRun `python manage.py runserver`, then run the whole collection (Runner) — every request has tests.\n\nBody fields: `start`, `finish` (\"City, ST\", required), `start_fuel_percent` (0-100, optional, default 100 = full tank), `optimize` (`time` | `distance` | `cost`, optional, default `time`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base",
+      "value": "http://127.0.0.1:8000"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Trips (default: full tank)",
+      "item": [
+        {
+          "name": "Chicago to Houston",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"summary and assumptions come first\", () => {",
+                  "    const keys = Object.keys(body);",
+                  "    pm.expect(keys.indexOf(\"assumptions\")).to.be.below(keys.indexOf(\"fuel_stops\"));",
+                  "    pm.expect(keys[keys.length - 1]).to.eql(\"route_geometry\");",
+                  "});",
+                  "pm.test(\"total gallons = miles / 10\", () => {",
+                  "    pm.expect(body.total_gallons).to.be.closeTo(body.distance_miles / 10, 0.1);",
+                  "});",
+                  "pm.test(\"total cost = starting fuel + stops\", () => {",
+                  "    const stops = body.fuel_stops.reduce((sum, s) => sum + s.cost, 0);",
+                  "    pm.expect(body.total_fuel_cost).to.be.closeTo(body.starting_fuel.cost + stops, 0.05);",
+                  "});",
+                  "pm.test(\"first stop is within the starting range\", () => {",
+                  "    const range = body.starting_fuel.gallons_in_tank * 10;",
+                  "    const miles = body.fuel_stops.map(s => s.mile);",
+                  "    if (miles.length) {",
+                  "        pm.expect(miles[0]).to.be.at.most(range + 0.1);",
+                  "    } else {",
+                  "        pm.expect(body.distance_miles).to.be.at.most(range + 0.1);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Chicago, IL\",\n  \"finish\": \"Houston, TX\"\n}"
+            },
+            "description": "About 1,083 miles. Full tank by default, so the first 500 miles run on the starting fuel."
+          }
+        },
+        {
+          "name": "Los Angeles to New York (coast to coast)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"summary and assumptions come first\", () => {",
+                  "    const keys = Object.keys(body);",
+                  "    pm.expect(keys.indexOf(\"assumptions\")).to.be.below(keys.indexOf(\"fuel_stops\"));",
+                  "    pm.expect(keys[keys.length - 1]).to.eql(\"route_geometry\");",
+                  "});",
+                  "pm.test(\"total gallons = miles / 10\", () => {",
+                  "    pm.expect(body.total_gallons).to.be.closeTo(body.distance_miles / 10, 0.1);",
+                  "});",
+                  "pm.test(\"total cost = starting fuel + stops\", () => {",
+                  "    const stops = body.fuel_stops.reduce((sum, s) => sum + s.cost, 0);",
+                  "    pm.expect(body.total_fuel_cost).to.be.closeTo(body.starting_fuel.cost + stops, 0.05);",
+                  "});",
+                  "pm.test(\"first stop is within the starting range\", () => {",
+                  "    const range = body.starting_fuel.gallons_in_tank * 10;",
+                  "    const miles = body.fuel_stops.map(s => s.mile);",
+                  "    if (miles.length) {",
+                  "        pm.expect(miles[0]).to.be.at.most(range + 0.1);",
+                  "    } else {",
+                  "        pm.expect(body.distance_miles).to.be.at.most(range + 0.1);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Los Angeles, CA\",\n  \"finish\": \"New York, NY\"\n}"
+            },
+            "description": "About 2,811 miles. The nearest station to central LA in the data is far away; see starting_fuel.priced_at."
+          }
+        },
+        {
+          "name": "Dallas to Houston (under 500 miles, no stop)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"summary and assumptions come first\", () => {",
+                  "    const keys = Object.keys(body);",
+                  "    pm.expect(keys.indexOf(\"assumptions\")).to.be.below(keys.indexOf(\"fuel_stops\"));",
+                  "    pm.expect(keys[keys.length - 1]).to.eql(\"route_geometry\");",
+                  "});",
+                  "pm.test(\"total gallons = miles / 10\", () => {",
+                  "    pm.expect(body.total_gallons).to.be.closeTo(body.distance_miles / 10, 0.1);",
+                  "});",
+                  "pm.test(\"total cost = starting fuel + stops\", () => {",
+                  "    const stops = body.fuel_stops.reduce((sum, s) => sum + s.cost, 0);",
+                  "    pm.expect(body.total_fuel_cost).to.be.closeTo(body.starting_fuel.cost + stops, 0.05);",
+                  "});",
+                  "pm.test(\"first stop is within the starting range\", () => {",
+                  "    const range = body.starting_fuel.gallons_in_tank * 10;",
+                  "    const miles = body.fuel_stops.map(s => s.mile);",
+                  "    if (miles.length) {",
+                  "        pm.expect(miles[0]).to.be.at.most(range + 0.1);",
+                  "    } else {",
+                  "        pm.expect(body.distance_miles).to.be.at.most(range + 0.1);",
+                  "    }",
+                  "});",
+                  "pm.test(\"no stops needed\", () => pm.expect(body.fuel_stops).to.be.empty);",
+                  "pm.test(\"fuel is left in the tank\", () => pm.expect(body.starting_fuel.gallons_left_at_finish).to.be.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Dallas, TX\",\n  \"finish\": \"Houston, TX\"\n}"
+            },
+            "description": "The full starting tank covers the trip, so fuel_stops is empty. Only the fuel used is charged; starting_fuel.gallons_left_at_finish shows what stays in the tank."
+          }
+        },
+        {
+          "name": "Chicago to Houston (GET)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"summary and assumptions come first\", () => {",
+                  "    const keys = Object.keys(body);",
+                  "    pm.expect(keys.indexOf(\"assumptions\")).to.be.below(keys.indexOf(\"fuel_stops\"));",
+                  "    pm.expect(keys[keys.length - 1]).to.eql(\"route_geometry\");",
+                  "});",
+                  "pm.test(\"total gallons = miles / 10\", () => {",
+                  "    pm.expect(body.total_gallons).to.be.closeTo(body.distance_miles / 10, 0.1);",
+                  "});",
+                  "pm.test(\"total cost = starting fuel + stops\", () => {",
+                  "    const stops = body.fuel_stops.reduce((sum, s) => sum + s.cost, 0);",
+                  "    pm.expect(body.total_fuel_cost).to.be.closeTo(body.starting_fuel.cost + stops, 0.05);",
+                  "});",
+                  "pm.test(\"first stop is within the starting range\", () => {",
+                  "    const range = body.starting_fuel.gallons_in_tank * 10;",
+                  "    const miles = body.fuel_stops.map(s => s.mile);",
+                  "    if (miles.length) {",
+                  "        pm.expect(miles[0]).to.be.at.most(range + 0.1);",
+                  "    } else {",
+                  "        pm.expect(body.distance_miles).to.be.at.most(range + 0.1);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/api/route/?start=Chicago, IL&finish=Houston, TX",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "api",
+                "route",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "Chicago, IL"
+                },
+                {
+                  "key": "finish",
+                  "value": "Houston, TX"
+                }
+              ]
+            },
+            "description": "Same as the POST, with query parameters."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Starting fuel (start_fuel_percent)",
+      "item": [
+        {
+          "name": "Chicago to Houston - half tank",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"summary and assumptions come first\", () => {",
+                  "    const keys = Object.keys(body);",
+                  "    pm.expect(keys.indexOf(\"assumptions\")).to.be.below(keys.indexOf(\"fuel_stops\"));",
+                  "    pm.expect(keys[keys.length - 1]).to.eql(\"route_geometry\");",
+                  "});",
+                  "pm.test(\"total gallons = miles / 10\", () => {",
+                  "    pm.expect(body.total_gallons).to.be.closeTo(body.distance_miles / 10, 0.1);",
+                  "});",
+                  "pm.test(\"total cost = starting fuel + stops\", () => {",
+                  "    const stops = body.fuel_stops.reduce((sum, s) => sum + s.cost, 0);",
+                  "    pm.expect(body.total_fuel_cost).to.be.closeTo(body.starting_fuel.cost + stops, 0.05);",
+                  "});",
+                  "pm.test(\"first stop is within the starting range\", () => {",
+                  "    const range = body.starting_fuel.gallons_in_tank * 10;",
+                  "    const miles = body.fuel_stops.map(s => s.mile);",
+                  "    if (miles.length) {",
+                  "        pm.expect(miles[0]).to.be.at.most(range + 0.1);",
+                  "    } else {",
+                  "        pm.expect(body.distance_miles).to.be.at.most(range + 0.1);",
+                  "    }",
+                  "});",
+                  "pm.test(\"25 gal in the tank\", () => pm.expect(body.starting_fuel.gallons_in_tank).to.eql(25));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Chicago, IL\",\n  \"finish\": \"Houston, TX\",\n  \"start_fuel_percent\": 50\n}"
+            },
+            "description": "25 gal, 250 miles of range before the first stop."
+          }
+        },
+        {
+          "name": "Chicago to Houston - almost empty (5%)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"summary and assumptions come first\", () => {",
+                  "    const keys = Object.keys(body);",
+                  "    pm.expect(keys.indexOf(\"assumptions\")).to.be.below(keys.indexOf(\"fuel_stops\"));",
+                  "    pm.expect(keys[keys.length - 1]).to.eql(\"route_geometry\");",
+                  "});",
+                  "pm.test(\"total gallons = miles / 10\", () => {",
+                  "    pm.expect(body.total_gallons).to.be.closeTo(body.distance_miles / 10, 0.1);",
+                  "});",
+                  "pm.test(\"total cost = starting fuel + stops\", () => {",
+                  "    const stops = body.fuel_stops.reduce((sum, s) => sum + s.cost, 0);",
+                  "    pm.expect(body.total_fuel_cost).to.be.closeTo(body.starting_fuel.cost + stops, 0.05);",
+                  "});",
+                  "pm.test(\"first stop is within the starting range\", () => {",
+                  "    const range = body.starting_fuel.gallons_in_tank * 10;",
+                  "    const miles = body.fuel_stops.map(s => s.mile);",
+                  "    if (miles.length) {",
+                  "        pm.expect(miles[0]).to.be.at.most(range + 0.1);",
+                  "    } else {",
+                  "        pm.expect(body.distance_miles).to.be.at.most(range + 0.1);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Chicago, IL\",\n  \"finish\": \"Houston, TX\",\n  \"start_fuel_percent\": 5\n}"
+            },
+            "description": "2.5 gal, 25 miles of range: the truck must stop at a station near Chicago first."
+          }
+        },
+        {
+          "name": "Los Angeles to New York - 60% tank",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"summary and assumptions come first\", () => {",
+                  "    const keys = Object.keys(body);",
+                  "    pm.expect(keys.indexOf(\"assumptions\")).to.be.below(keys.indexOf(\"fuel_stops\"));",
+                  "    pm.expect(keys[keys.length - 1]).to.eql(\"route_geometry\");",
+                  "});",
+                  "pm.test(\"total gallons = miles / 10\", () => {",
+                  "    pm.expect(body.total_gallons).to.be.closeTo(body.distance_miles / 10, 0.1);",
+                  "});",
+                  "pm.test(\"total cost = starting fuel + stops\", () => {",
+                  "    const stops = body.fuel_stops.reduce((sum, s) => sum + s.cost, 0);",
+                  "    pm.expect(body.total_fuel_cost).to.be.closeTo(body.starting_fuel.cost + stops, 0.05);",
+                  "});",
+                  "pm.test(\"first stop is within the starting range\", () => {",
+                  "    const range = body.starting_fuel.gallons_in_tank * 10;",
+                  "    const miles = body.fuel_stops.map(s => s.mile);",
+                  "    if (miles.length) {",
+                  "        pm.expect(miles[0]).to.be.at.most(range + 0.1);",
+                  "    } else {",
+                  "        pm.expect(body.distance_miles).to.be.at.most(range + 0.1);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Los Angeles, CA\",\n  \"finish\": \"New York, NY\",\n  \"start_fuel_percent\": 60\n}"
+            },
+            "description": "300 miles of range: enough to reach the first station on the route (Jean, NV, about mile 250)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Bonus - optimize",
+      "item": [
+        {
+          "name": "Chicago to Houston - cheapest route",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"summary and assumptions come first\", () => {",
+                  "    const keys = Object.keys(body);",
+                  "    pm.expect(keys.indexOf(\"assumptions\")).to.be.below(keys.indexOf(\"fuel_stops\"));",
+                  "    pm.expect(keys[keys.length - 1]).to.eql(\"route_geometry\");",
+                  "});",
+                  "pm.test(\"total gallons = miles / 10\", () => {",
+                  "    pm.expect(body.total_gallons).to.be.closeTo(body.distance_miles / 10, 0.1);",
+                  "});",
+                  "pm.test(\"total cost = starting fuel + stops\", () => {",
+                  "    const stops = body.fuel_stops.reduce((sum, s) => sum + s.cost, 0);",
+                  "    pm.expect(body.total_fuel_cost).to.be.closeTo(body.starting_fuel.cost + stops, 0.05);",
+                  "});",
+                  "pm.test(\"first stop is within the starting range\", () => {",
+                  "    const range = body.starting_fuel.gallons_in_tank * 10;",
+                  "    const miles = body.fuel_stops.map(s => s.mile);",
+                  "    if (miles.length) {",
+                  "        pm.expect(miles[0]).to.be.at.most(range + 0.1);",
+                  "    } else {",
+                  "        pm.expect(body.distance_miles).to.be.at.most(range + 0.1);",
+                  "    }",
+                  "});",
+                  "pm.test(\"routes were compared\", () => pm.expect(body.routes_compared).to.be.at.least(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Chicago, IL\",\n  \"finish\": \"Houston, TX\",\n  \"optimize\": \"cost\"\n}"
+            },
+            "description": "OSRM returns alternative routes in the same single call; the one with the lowest total fuel cost (starting fuel included) is returned. routes_compared says how many were compared."
+          }
+        },
+        {
+          "name": "Chicago to Houston - shortest route",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"summary and assumptions come first\", () => {",
+                  "    const keys = Object.keys(body);",
+                  "    pm.expect(keys.indexOf(\"assumptions\")).to.be.below(keys.indexOf(\"fuel_stops\"));",
+                  "    pm.expect(keys[keys.length - 1]).to.eql(\"route_geometry\");",
+                  "});",
+                  "pm.test(\"total gallons = miles / 10\", () => {",
+                  "    pm.expect(body.total_gallons).to.be.closeTo(body.distance_miles / 10, 0.1);",
+                  "});",
+                  "pm.test(\"total cost = starting fuel + stops\", () => {",
+                  "    const stops = body.fuel_stops.reduce((sum, s) => sum + s.cost, 0);",
+                  "    pm.expect(body.total_fuel_cost).to.be.closeTo(body.starting_fuel.cost + stops, 0.05);",
+                  "});",
+                  "pm.test(\"first stop is within the starting range\", () => {",
+                  "    const range = body.starting_fuel.gallons_in_tank * 10;",
+                  "    const miles = body.fuel_stops.map(s => s.mile);",
+                  "    if (miles.length) {",
+                  "        pm.expect(miles[0]).to.be.at.most(range + 0.1);",
+                  "    } else {",
+                  "        pm.expect(body.distance_miles).to.be.at.most(range + 0.1);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Chicago, IL\",\n  \"finish\": \"Houston, TX\",\n  \"optimize\": \"distance\"\n}"
+            },
+            "description": "Shortest of the routes OSRM offers."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Map page",
+      "item": [
+        {
+          "name": "Map - Los Angeles to New York",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"returns the HTML map page\", () => pm.expect(pm.response.text()).to.include(\"leaflet\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/api/map/?start=Los Angeles, CA&finish=New York, NY&start_fuel_percent=100",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "api",
+                "map",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "Los Angeles, CA"
+                },
+                {
+                  "key": "finish",
+                  "value": "New York, NY"
+                },
+                {
+                  "key": "start_fuel_percent",
+                  "value": "100"
+                }
+              ]
+            },
+            "description": "HTML page (Leaflet + OpenStreetMap). Open map_url from any response in a browser to see it; the route is cached, so this does not call OSRM again."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Errors",
+      "item": [
+        {
+          "name": "400 - start outside the USA",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Toronto, ON\",\n  \"finish\": \"Houston, TX\"\n}"
+            },
+            "description": "Only US start and finish points are accepted."
+          }
+        },
+        {
+          "name": "400 - wrong format",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Chicago\",\n  \"finish\": \"Houston, TX\"\n}"
+            },
+            "description": "Locations must be \"City, ST\"."
+          }
+        },
+        {
+          "name": "400 - missing finish",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"message explains the problem\", () => {",
+                  "    pm.expect(pm.response.text()).to.include(\"finish\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Chicago, IL\"\n}"
+            },
+            "description": "Both start and finish are required."
+          }
+        },
+        {
+          "name": "400 - start_fuel_percent above 100",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"message explains the problem\", () => {",
+                  "    pm.expect(pm.response.text()).to.include(\"start_fuel_percent\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Chicago, IL\",\n  \"finish\": \"Houston, TX\",\n  \"start_fuel_percent\": 150\n}"
+            },
+            "description": "start_fuel_percent must be 0-100."
+          }
+        },
+        {
+          "name": "400 - unknown optimize mode",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"message explains the problem\", () => {",
+                  "    pm.expect(pm.response.text()).to.include(\"optimize\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Chicago, IL\",\n  \"finish\": \"Houston, TX\",\n  \"optimize\": \"fastest\"\n}"
+            },
+            "description": "optimize must be time, distance or cost."
+          }
+        },
+        {
+          "name": "422 - empty tank cannot leave Los Angeles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"message explains the problem\", () => {",
+                  "    pm.expect(pm.response.text()).to.include(\"not enough\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Los Angeles, CA\",\n  \"finish\": \"New York, NY\",\n  \"start_fuel_percent\": 0\n}"
+            },
+            "description": "With 0% the truck cannot reach any station."
+          }
+        },
+        {
+          "name": "422 - 10% tank does not reach the first station",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"message explains the problem\", () => {",
+                  "    pm.expect(pm.response.text()).to.include(\"first station is at mile\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base}}/api/route/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"Los Angeles, CA\",\n  \"finish\": \"New York, NY\",\n  \"start_fuel_percent\": 10\n}"
+            },
+            "description": "100 miles of range; the first station on the route is about 250 miles away. The message names its mile."
+          }
+        }
+      ]
+    }
+  ]
+}
