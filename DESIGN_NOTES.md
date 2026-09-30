@@ -138,6 +138,8 @@ Parameters: range 500 miles, 10 mpg → 50-gallon tank. At each station:
 2. Otherwise, fill the tank and drive to the cheapest station within range.
 3. If the destination is within range and nothing cheaper lies before it, buy just enough to finish.
 
+Verified: the implementation reproduces the worked example below ($348.20) and matched a brute-force dynamic-programming solver on 60 random trips.
+
 Worked example — 1,100-mile trip, tank starts empty:
 
 | At mile | Price | Decision | Bought | Cost |
@@ -148,7 +150,9 @@ Worked example — 1,100-mile trip, tank starts empty:
 | 850 | $3.40 | Arrive with 21 gal; finish 250 mi away, nothing cheaper ahead → buy 4 gal | 4 gal | $13.60 |
 | **Total** | | | **110 gal** (= 1,100 ÷ 10) | **$348.20** |
 
-### D8. Tank at the start — starts empty, first fill near the start *(pending confirmation)*
+### D8. Tank at the start — starts empty, first fill near the start *(decided)*
+
+The truck starts empty; its first purchase is priced at the cheapest station within 25 miles of the start (counted as mile 0). If no station is that close, the API returns an error rather than guessing.
 
 Alternative considered: starts full. Then trips under 500 miles show $0 and longer trips count only fuel bought en route, which looks like a bug when checked against miles ÷ 10 × price.
 
@@ -201,7 +205,7 @@ SOLID applied the Python way: one reason to change per module; the optimizer tak
 | E3 | Station's city not in any source | Resolved to 100% with three sources + a 9-row alias file; the loader still reports any future misses instead of failing |
 | E4 | Canadian stations | Included — needed for US-to-US routes that cross Canada (Alaska Highway, Detroit–Buffalo via Ontario); placed with the NRCan Canadian Geographical Names file |
 | E5 | Start/finish not found, or outside the US | 400 error with a clear message *(planned)* |
-| E6 | A stretch longer than 500 miles with no station in the corridor | Error explaining the trip cannot be completed on this range *(planned)* |
+| E6 | A stretch longer than 500 miles with no station in the corridor | `NoFeasiblePlan` error naming the mile where the gap starts |
 | E7 | Trip under 500 miles | One fill near the start (under D8) |
 | E8 | OSRM returns no alternatives | Compare whatever is returned (bonus mode) |
 | E9 | OSRM public server limits | Documented; acceptable for an assessment |
