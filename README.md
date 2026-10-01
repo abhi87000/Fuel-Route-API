@@ -78,9 +78,9 @@ python manage.py runserver
 
 `route_geometry` is standard GeoJSON (`[longitude, latitude]`) and can be pasted into [geojson.io](https://geojson.io). It is simplified to about one point per mile to keep the response small; the full OSRM geometry is still used for finding stations.
 
-### `GET /api/map/?start=…&finish=…&start_fuel_percent=…`
+### Map page (HTML, not part of the JSON API): `/api/map/?start=…&finish=…&start_fuel_percent=…`
 
-An HTML page drawing the route and the fuel stops (Leaflet + OpenStreetMap tiles). The API response links to it as `map_url`. The route is cached, so opening the map does not call OSRM again.
+Not an API endpoint: a web page you open in the browser, drawing the route and the fuel stops (Leaflet + OpenStreetMap tiles). The API response links to it as `map_url`. The route is cached, so opening the map does not call OSRM again.
 
 ### Errors
 
