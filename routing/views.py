@@ -32,13 +32,7 @@ def run_plan(data):
 
 class RoutePlanView(APIView):
     def post(self, request):
-        return self.respond(request, request.data)
-
-    def get(self, request):
-        return self.respond(request, request.query_params)
-
-    def respond(self, request, data):
-        plan, errors, code = run_plan(data)
+        plan, errors, code = run_plan(request.data)
         if plan is None:
             return Response(errors, status=code)
         query = urlencode({"start": plan["start"]["query"], "finish": plan["finish"]["query"], "optimize": plan["optimize"],

@@ -442,9 +442,9 @@ SOLID applied the Python way: one reason to change per module; the optimizer tak
 - **Step 2** — `FuelStation` and `City` models; `load_stations` command: 6,738 stations placed (100%), including Canada; 208,112 place names; 84 duplicate names resolved by Rack ID.
 - **Step 3** — `geocoding.py` (local "City, ST" lookup, US only) and `osrm.py` (the single routing call). Chicago → Houston: 1,083 mi, 19.9 h.
 - **Step 4** — `corridor.py` (Part A) and `fuel_optimizer.py` (Part B), explained in D7. Optimizer matched a brute-force solver on 150 random trips.
-- **Step 5** — `route_planner.py`, serializer, API view (`/api/route/`, GET and POST), map page (`/api/map/`), error codes 400/422/503, OSRM cache, bonus `optimize` modes.
+- **Step 5** — `route_planner.py`, serializer, API view (`POST /api/route/`), map page (`/api/map/`), error codes 400/422/503, OSRM cache, bonus `optimize` modes.
 - **Step 6** — tests (`python manage.py test routing`), README, Postman collection. Synthetic-route timings: 0.01–0.1 s per request excluding the OSRM call (Los Angeles → New York: 2,782 mi, 15 stops).
-- **Step 7** — after running real trips: `route_geometry` in the response cut to about one point per mile; `assumptions` moved to the top of the response. Starting fuel reworked (D8): optional `start_fuel_percent` (default full), the truck can only drive as far as that fuel before its first stop (422 otherwise), and the starting fuel used is charged at the nearest station's price. 12 tests; optimizer re-checked against brute force on 1,500 random trips.
+- **Step 7** — after running real trips: the GET variant of `/api/route/` removed (POST only, one way in); `route_geometry` in the response cut to about one point per mile; `assumptions` moved to the top of the response. Starting fuel reworked (D8): optional `start_fuel_percent` (default full), the truck can only drive as far as that fuel before its first stop (422 otherwise), and the starting fuel used is charged at the nearest station's price. 12 tests; optimizer re-checked against brute force on 1,500 random trips.
 
 ## References
 

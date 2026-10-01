@@ -27,7 +27,7 @@ python manage.py runserver
 
 ## API
 
-### `POST /api/route/` (also `GET /api/route/?start=…&finish=…&start_fuel_percent=…`)
+### `POST /api/route/`
 
 ```json
 {
@@ -118,11 +118,11 @@ python manage.py test routing
 
 12 tests cover the optimizer (including the worked example: 1,100 miles from an empty tank → 110 gal, $348.20), full and partly full tanks, starting fuel that cannot reach a station, gaps longer than 500 miles, the starting-fuel cost, and the API with OSRM mocked, so no network is needed.
 
-A Postman collection is included: `postman_collection.json`, 17 requests in 5 folders, each with tests (run the whole collection with the Runner):
+A Postman collection is included: `postman_collection.json`, 16 requests in 5 folders, each with tests (run the whole collection with the Runner):
 
 | Folder | Requests |
 |---|---|
-| 1. Trips (default: full tank) | Chicago → Houston, Los Angeles → New York, Dallas → Houston (under 500 miles, no stop), Chicago → Houston as GET |
+| 1. Trips (default: full tank) | Chicago → Houston, Los Angeles → New York, Dallas → Houston (under 500 miles, no stop) |
 | 2. Starting fuel | Chicago → Houston with 50% and 5%, Los Angeles → New York with 60% |
 | 3. Bonus - optimize | `cost` and `distance` |
 | 4. Map page | `/api/map/` for Los Angeles → New York |

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Fuel Route API",
-    "description": "Route, cheapest fuel stops and total fuel cost between two US cities.\n\nRun `python manage.py runserver`, then run the whole collection (Runner) — every request has tests.\n\nBody fields: `start`, `finish` (\"City, ST\", required), `start_fuel_percent` (0-100, optional, default 100 = full tank), `optimize` (`time` | `distance` | `cost`, optional, default `time`).",
+    "description": "Route, cheapest fuel stops and total fuel cost between two US cities.\n\nRun `python manage.py runserver`, then run the whole collection (Runner) — every request has tests.\n\nEndpoint: `POST /api/route/` (JSON body). `/api/map/` is the HTML map page the response links to.\n\nBody fields: `start`, `finish` (\"City, ST\", required), `start_fuel_percent` (0-100, optional, default 100 = full tank), `optimize` (`time` | `distance` | `cost`, optional, default `time`).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -167,68 +167,6 @@
               "raw": "{\n  \"start\": \"Dallas, TX\",\n  \"finish\": \"Houston, TX\"\n}"
             },
             "description": "The full starting tank covers the trip, so fuel_stops is empty. Only the fuel used is charged; starting_fuel.gallons_left_at_finish shows what stays in the tank."
-          }
-        },
-        {
-          "name": "Chicago to Houston (GET)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const body = pm.response.json();",
-                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"summary and assumptions come first\", () => {",
-                  "    const keys = Object.keys(body);",
-                  "    pm.expect(keys.indexOf(\"assumptions\")).to.be.below(keys.indexOf(\"fuel_stops\"));",
-                  "    pm.expect(keys[keys.length - 1]).to.eql(\"route_geometry\");",
-                  "});",
-                  "pm.test(\"total gallons = miles / 10\", () => {",
-                  "    pm.expect(body.total_gallons).to.be.closeTo(body.distance_miles / 10, 0.1);",
-                  "});",
-                  "pm.test(\"total cost = starting fuel + stops\", () => {",
-                  "    const stops = body.fuel_stops.reduce((sum, s) => sum + s.cost, 0);",
-                  "    pm.expect(body.total_fuel_cost).to.be.closeTo(body.starting_fuel.cost + stops, 0.05);",
-                  "});",
-                  "pm.test(\"first stop is within the starting range\", () => {",
-                  "    const range = body.starting_fuel.gallons_in_tank * 10;",
-                  "    const miles = body.fuel_stops.map(s => s.mile);",
-                  "    if (miles.length) {",
-                  "        pm.expect(miles[0]).to.be.at.most(range + 0.1);",
-                  "    } else {",
-                  "        pm.expect(body.distance_miles).to.be.at.most(range + 0.1);",
-                  "    }",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base}}/api/route/?start=Chicago, IL&finish=Houston, TX",
-              "host": [
-                "{{base}}"
-              ],
-              "path": [
-                "api",
-                "route",
-                ""
-              ],
-              "query": [
-                {
-                  "key": "start",
-                  "value": "Chicago, IL"
-                },
-                {
-                  "key": "finish",
-                  "value": "Houston, TX"
-                }
-              ]
-            },
-            "description": "Same as the POST, with query parameters."
           }
         }
       ]
